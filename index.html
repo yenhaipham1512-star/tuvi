@@ -12,6 +12,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #0a0a0c;
             color: #e2e8f0;
+            margin: 0;
         }
         .font-serif {
             font-family: 'Playfair Display', serif;
@@ -26,19 +27,6 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .gold-border {
-            border: 1px solid rgba(191, 149, 63, 0.3);
-        }
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0a0a0c;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #2d3748;
-            border-radius: 4px;
-        }
         #loader {
             display: flex;
             position: fixed;
@@ -48,19 +36,18 @@
             align-items: center;
             justify-content: center;
             flex-direction: column;
+            transition: opacity 0.5s ease-out;
         }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "@google/genai": "https://esm.sh/@google/genai@1.35.0",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0"
   }
 }
 </script>
@@ -68,33 +55,48 @@
 <body>
     <div id="loader">
         <div class="w-12 h-12 border-4 border-yellow-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-yellow-600 font-serif tracking-widest uppercase text-xs">Đang khởi tạo linh khí...</p>
+        <p class="text-yellow-600 font-serif tracking-widest uppercase text-[10px]">Đang khởi tạo linh khí...</p>
     </div>
 
     <div id="root"></div>
 
-    <script type="module">
-        // Tự động ẩn loader khi React đã mount
-        window.addEventListener('load', () => {
-            const checkExist = setInterval(() => {
-                if (document.getElementById('root').children.length > 0) {
-                    document.getElementById('loader').style.display = 'none';
-                    clearInterval(checkExist);
-                }
-            }, 100);
-            
-            // Timeout sau 10 giây nếu không tải được
-            setTimeout(() => {
-                if (document.getElementById('root').children.length === 0) {
-                    document.getElementById('loader').innerHTML = `
-                        <p class="text-red-500 font-serif mb-2">Ứng dụng không thể khởi động.</p>
-                        <p class="text-slate-500 text-xs">Vui lòng kiểm tra Console (F12) để biết chi tiết lỗi.</p>
-                        <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-yellow-600 text-white text-xs rounded">Thử lại</button>
+    <!-- Script này sẽ được Vite xử lý khi bạn chạy lệnh build -->
+    <script type="module" src="./index.tsx"></script>
+
+    <script>
+        // Tự động ẩn loader sau khi ứng dụng React đã sẵn sàng
+        const hideLoader = () => {
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => { loader.style.display = 'none'; }, 500);
+            }
+        };
+
+        // Quan sát khi React render vào root
+        const observer = new MutationObserver((mutations) => {
+            if (document.getElementById('root').children.length > 0) {
+                hideLoader();
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.getElementById('root'), { childList: true });
+
+        // Timeout fallback
+        setTimeout(() => {
+            if (document.getElementById('root').children.length === 0) {
+                const loader = document.getElementById('loader');
+                if (loader) {
+                    loader.innerHTML = `
+                        <div class="text-center px-4">
+                            <p class="text-red-500 font-serif mb-2">Không thể khởi động ứng dụng.</p>
+                            <p class="text-slate-500 text-xs mb-4">Có thể do lỗi kết nối hoặc API Key chưa được cấu hình.</p>
+                            <button onclick="location.reload()" class="px-4 py-2 bg-yellow-600 text-white text-[10px] rounded uppercase font-bold">Thử lại</button>
+                        </div>
                     `;
                 }
-            }, 10000);
-        });
+            }
+        }, 15000);
     </script>
-    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

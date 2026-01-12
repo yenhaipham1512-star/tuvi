@@ -2,15 +2,32 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserInfo, HoroscopeResult } from "../types";
 
-// Hỗ trợ cả API Key từ môi trường Vite (Netlify) và môi trường process.env cũ
-const API_KEY = (import.meta as any).env?.VITE_API_KEY || process.env.API_KEY;
+// Cách lấy API Key an toàn cho cả môi trường Vite (build) và môi trường runtime
+const getApiKey = () => {
+  // 1. Thử lấy từ Vite env (thường dùng cho các nền tảng như Netlify/Vercel)
+  const viteKey = (import.meta as any).env?.VITE_API_KEY;
+  if (viteKey) return viteKey;
 
-export const getHoroscopeAnalysis = async (user: UserInfo): Promise<HoroscopeResult> => {
-  if (!API_KEY) {
-    throw new Error("API Key không tồn tại. Vui lòng kiểm tra cấu hình.");
+  // 2. Thử lấy từ process.env (phải kiểm tra sự tồn tại của process trước để tránh crash)
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Bỏ qua nếu process không tồn tại
   }
 
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  return null;
+};
+
+export const getHoroscopeAnalysis = async (user: UserInfo): Promise<HoroscopeResult> => {
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    throw new Error("Không tìm thấy API Key. Vui lòng cấu hình VITE_API_KEY trong Site Settings.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `Hãy đóng vai một chuyên gia Tử Vi Đẩu Số (Master Tuệ Nhiên). 
   Hãy lập lá số Tử Vi cho người này:

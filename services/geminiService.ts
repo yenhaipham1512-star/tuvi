@@ -1,30 +1,12 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserInfo, HoroscopeResult } from "../types";
 
-// Cách lấy API Key an toàn cho cả môi trường Vite (build) và môi trường runtime
-const getApiKey = () => {
-  // 1. Thử lấy từ Vite env (thường dùng cho các nền tảng như Netlify/Vercel)
-  const viteKey = (import.meta as any).env?.VITE_API_KEY;
-  if (viteKey) return viteKey;
-
-  // 2. Thử lấy từ process.env (phải kiểm tra sự tồn tại của process trước để tránh crash)
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
-    }
-  } catch (e) {
-    // Bỏ qua nếu process không tồn tại
-  }
-
-  return null;
-};
-
 export const getHoroscopeAnalysis = async (user: UserInfo): Promise<HoroscopeResult> => {
-  const apiKey = getApiKey();
+  // Sử dụng process.env.API_KEY theo yêu cầu để đảm bảo tính bảo mật và tự động injection
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("Không tìm thấy API Key. Vui lòng cấu hình VITE_API_KEY trong Site Settings.");
+    throw new Error("Không tìm thấy API Key. Vui lòng kiểm tra lại cấu hình Environment Variables.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -47,46 +29,52 @@ export const getHoroscopeAnalysis = async (user: UserInfo): Promise<HoroscopeRes
      - loveAnalysis: Luận về tình duyên gia đạo.
      - healthAnalysis: Luận về sức khỏe và tai ách.`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          lunarDate: { type: Type.STRING },
-          canChi: { type: Type.STRING },
-          overallSummary: { type: Type.STRING },
-          personalityAnalysis: { type: Type.STRING },
-          careerAnalysis: { type: Type.STRING },
-          loveAnalysis: { type: Type.STRING },
-          healthAnalysis: { type: Type.STRING },
-          palaces: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                location: { type: Type.STRING },
-                stars: {
-                  type: Type.OBJECT,
-                  properties: {
-                    mainStars: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    subStars: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ["mainStars", "subStars"]
-                }
-              },
-              required: ["name", "location", "stars"]
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            lunarDate: { type: Type.STRING },
+            canChi: { type: Type.STRING },
+            overallSummary: { type: Type.STRING },
+            personalityAnalysis: { type: Type.STRING },
+            careerAnalysis: { type: Type.STRING },
+            loveAnalysis: { type: Type.STRING },
+            healthAnalysis: { type: Type.STRING },
+            palaces: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  location: { type: Type.STRING },
+                  stars: {
+                    type: Type.OBJECT,
+                    properties: {
+                      mainStars: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      subStars: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                    required: ["mainStars", "subStars"]
+                  }
+                },
+                required: ["name", "location", "stars"]
+              }
             }
-          }
-        },
-        required: ["lunarDate", "canChi", "overallSummary", "personalityAnalysis", "careerAnalysis", "loveAnalysis", "healthAnalysis", "palaces"]
+          },
+          required: ["lunarDate", "canChi", "overallSummary", "personalityAnalysis", "careerAnalysis", "loveAnalysis", "healthAnalysis", "palaces"]
+        }
       }
-    }
-  });
+    });
 
-  const result = JSON.parse(response.text);
-  return result;
+    const text = response.text;
+    if (!text) throw new Error("Mô hình không trả về dữ liệu.");
+    return JSON.parse(text.trim());
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    throw error;
+  }
 };
